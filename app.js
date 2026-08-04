@@ -36,32 +36,49 @@ function onYouTubeIframeAPIReady() {
 
                 onReady: function() {
 
-                    console.log("YouTube player ready");
+                    console.log(
+                        "YouTube player ready"
+                    );
 
                     playerReady = true;
 
                 },
 
+
                 onStateChange: function(event) {
-                    const state = event.data;
+
+                    const state =
+                    event.data;
+
+
                     console.log(
                         "Player state:",
                         state
                     );
+
+
                     if(
                         state === YT.PlayerState.PLAYING
                     ){
+
                         console.log(
                             "Playback began at:",
                             player.getCurrentTime()
                         );
+
+
                         player.pauseVideo();
+
                     }
+
                 }
+
             }
-        };
-}
-                
+
+        }
+    );
+
+}           
 // ----------------------------
 // Elements
 // ----------------------------
