@@ -34,8 +34,9 @@ function onYouTubeIframeAPIReady() {
 const loadBtn = document.getElementById("loadBtn");
 
 const playBtn = document.getElementById("playBtn");
-const showVideoBtn = document.getElementById("showVideoBtn");
 
+const showVideoBtn = document.getElementById("showVideoBtn");
+const pauseBtn = document.getElementById("pauseBtn");
 const submitBtn = document.getElementById("submitBtn");
 const nextBtn = document.getElementById("nextBtn");
 
