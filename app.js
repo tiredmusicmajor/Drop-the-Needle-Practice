@@ -59,8 +59,8 @@ function onYouTubeIframeAPIReady() {
                     }
                 }
             }
-        }
-        }
+        };
+}
                 
 // ----------------------------
 // Elements
