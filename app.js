@@ -29,20 +29,9 @@ function onYouTubeIframeAPIReady() {
 
             events: {
 
-                onStateChange: function(event) {
+                onReady: function() {
 
-                    if (
-                        event.data === YT.PlayerState.CUED
-                    ) {
-
-                        player.seekTo(
-                            pendingStartTime,
-                            true
-                        );
-
-                        player.pauseVideo();
-
-                    }
+                    console.log("YouTube player ready");
 
                 }
 
@@ -406,6 +395,8 @@ async function nextSong(){
 
     if(duration < MIN_DURATION){
 
+        deck.unshift(current);
+
         return nextSong();
 
     }
@@ -429,10 +420,24 @@ async function nextSong(){
 
 
 
+    console.log(
+        "Playing:",
+        current.title,
+        "Duration:",
+        duration,
+        "Start:",
+        pendingStartTime
+    );
+
+
+
     player.cueVideoById({
 
         videoId:
-        current.id
+        current.id,
+
+        startSeconds:
+        pendingStartTime
 
     });
 
