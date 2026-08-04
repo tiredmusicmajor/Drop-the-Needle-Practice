@@ -1,12 +1,20 @@
+// ----------------------------
+// State
+// ----------------------------
+
 let playlist = [];
 let deck = [];
 let current = null;
 
-let player;
+let player = null;
 
 let pendingStartTime = 0;
+let playerReady = false;
+let videoReady = false;
+let seeking = false;
 
 const MIN_DURATION = 60;
+
 
 // ----------------------------
 // YouTube Player
@@ -28,27 +36,57 @@ function onYouTubeIframeAPIReady() {
 
             events: {
 
+                onReady: function() {
+
+                    console.log("YouTube player ready");
+
+                    playerReady = true;
+
+                },
+
+
                 onStateChange: function(event) {
 
+                    const state = event.data;
+
+
+                    console.log(
+                        "Player state:",
+                        state
+                    );
+
+
                     if (
-                        event.data === YT.PlayerState.CUED
+                        state === YT.PlayerState.PLAYING
+                        &&
+                        seeking
                     ) {
 
                         console.log(
-                            "Seeking to:",
+                            "Seeking after playback start:",
                             pendingStartTime
                         );
 
-                        setTimeout(() => {
 
-                            player.seekTo(
-                                pendingStartTime,
-                                true
-                            );
+                        player.seekTo(
+                            pendingStartTime,
+                            true
+                        );
 
-                            player.pauseVideo();
 
-                        }, 250);
+                        setTimeout(
+                            verifySeek,
+                            500
+                        );
+
+                    }
+
+
+                    if (
+                        state === YT.PlayerState.CUED
+                    ) {
+
+                        videoReady = true;
 
                     }
 
@@ -57,6 +95,62 @@ function onYouTubeIframeAPIReady() {
             }
 
         }
+    );
+
+}
+
+
+
+// ----------------------------
+// Verify Seek
+// ----------------------------
+
+function verifySeek() {
+
+    const currentTime =
+    player.getCurrentTime();
+
+
+    console.log(
+        "Current player time:",
+        currentTime
+    );
+
+
+    if(
+        Math.abs(
+            currentTime - pendingStartTime
+        ) < 3
+    ){
+
+        console.log(
+            "Seek successful"
+        );
+
+
+        player.pauseVideo();
+
+        seeking = false;
+
+        return;
+
+    }
+
+
+    console.log(
+        "Seek retry"
+    );
+
+
+    player.seekTo(
+        pendingStartTime,
+        true
+    );
+
+
+    setTimeout(
+        verifySeek,
+        500
     );
 
 }
@@ -94,11 +188,12 @@ document.getElementById("status");
 
 
 // ----------------------------
-// Restore saved values
+// Restore Saved Values
 // ----------------------------
 
 document.getElementById("playlistUrl").value =
 localStorage.playlistUrl || "";
+
 
 document.getElementById("apiKey").value =
 localStorage.apiKey || "";
@@ -111,7 +206,6 @@ localStorage.apiKey || "";
 
 loadBtn.onclick = async function() {
 
-
     const playlistUrl =
     document.getElementById("playlistUrl").value;
 
@@ -120,9 +214,12 @@ loadBtn.onclick = async function() {
     document.getElementById("apiKey").value;
 
 
-    localStorage.playlistUrl = playlistUrl;
-    localStorage.apiKey = apiKey;
+    localStorage.playlistUrl =
+    playlistUrl;
 
+
+    localStorage.apiKey =
+    apiKey;
 
 
     let playlistId;
@@ -147,7 +244,6 @@ loadBtn.onclick = async function() {
     }
 
 
-
     if(!playlistId){
 
         status.textContent =
@@ -158,20 +254,16 @@ loadBtn.onclick = async function() {
     }
 
 
-
     status.textContent =
     "Loading playlist...";
-
 
 
     const cacheKey =
     "playlist_" + playlistId;
 
 
-
     const cached =
     localStorage.getItem(cacheKey);
-
 
 
     if(cached){
@@ -182,7 +274,6 @@ loadBtn.onclick = async function() {
     }
 
     else {
-
 
         playlist =
         await getPlaylist(
@@ -199,7 +290,6 @@ loadBtn.onclick = async function() {
     }
 
 
-
     if(
         playlist.length === 0
     ){
@@ -212,9 +302,7 @@ loadBtn.onclick = async function() {
     }
 
 
-
     shuffleDeck();
-
 
 
     document
@@ -227,35 +315,25 @@ loadBtn.onclick = async function() {
     .hidden = false;
 
 
-
     status.textContent =
     `${playlist.length} songs loaded`;
 
 
-
     nextSong();
 
-
 };
-
-
-
-
 // ----------------------------
 // Get Playlist
 // ----------------------------
 
-async function getPlaylist(id,key){
-
+async function getPlaylist(id, key) {
 
     let videos = [];
 
     let token = "";
 
 
-
     do {
-
 
         const url =
         "https://www.googleapis.com/youtube/v3/playlistItems"
@@ -271,29 +349,26 @@ async function getPlaylist(id,key){
         `&pageToken=${token}`;
 
 
-
         const response =
         await fetch(url);
-
 
 
         const data =
         await response.json();
 
 
-
         if(data.error){
 
-            alert(data.error.message);
+            alert(
+                data.error.message
+            );
 
             return [];
 
         }
 
 
-
         data.items.forEach(item => {
-
 
             videos.push({
 
@@ -308,19 +383,15 @@ async function getPlaylist(id,key){
 
             });
 
-
         });
-
 
 
         token =
         data.nextPageToken || "";
 
 
-
     }
     while(token);
-
 
 
     return videos;
@@ -333,12 +404,10 @@ async function getPlaylist(id,key){
 // Shuffle
 // ----------------------------
 
-function shuffleDeck(){
-
+function shuffleDeck() {
 
     deck =
     [...playlist];
-
 
 
     for(
@@ -347,7 +416,7 @@ function shuffleDeck(){
         i--
     ){
 
-        let j =
+        const j =
         Math.floor(
             Math.random() * (i + 1)
         );
@@ -356,8 +425,7 @@ function shuffleDeck(){
         [
             deck[i],
             deck[j]
-        ]
-        =
+        ] =
         [
             deck[j],
             deck[i]
@@ -373,7 +441,7 @@ function shuffleDeck(){
 // Next Song
 // ----------------------------
 
-async function nextSong(){
+async function nextSong() {
 
 
     document
@@ -440,7 +508,7 @@ async function nextSong(){
 
 
     console.log(
-        "Playing:",
+        "Selected:",
         current.title,
         "Duration:",
         duration,
@@ -450,12 +518,25 @@ async function nextSong(){
 
 
 
-    player.cueVideoById({
+    seeking = true;
 
-        videoId:
-        current.id,
 
-    });
+
+    videoReady = false;
+
+
+
+    /*
+        We intentionally use loadVideoById
+        instead of cueVideoById.
+
+        The player must actually initialize
+        the media before seeking is reliable.
+    */
+
+    player.loadVideoById(
+        current.id
+    );
 
 
 
@@ -473,22 +554,19 @@ async function nextSong(){
 
 
 
-
 // ----------------------------
 // Duration Cache
 // ----------------------------
 
-async function getDuration(id){
+async function getDuration(id) {
 
 
     const cacheKey =
     "duration_" + id;
 
 
-
     const cached =
     localStorage.getItem(cacheKey);
-
 
 
     if(cached){
@@ -496,7 +574,6 @@ async function getDuration(id){
         return Number(cached);
 
     }
-
 
 
     const key =
@@ -542,21 +619,22 @@ async function getDuration(id){
     );
 
 
-
     return duration;
-
 
 }
 
 
 
+// ----------------------------
+// Parse YouTube Duration
+// ----------------------------
 
-function parseDuration(value){
+function parseDuration(value) {
 
 
     const result =
     value.match(
-    /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/
+        /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/
     );
 
 
@@ -576,14 +654,18 @@ function parseDuration(value){
     );
 
 }
-
-
-
 // ----------------------------
 // Controls
 // ----------------------------
 
-playBtn.onclick = function(){
+playBtn.onclick = function() {
+
+    if(!player){
+
+        return;
+
+    }
+
 
     player.playVideo();
 
@@ -591,7 +673,14 @@ playBtn.onclick = function(){
 
 
 
-pauseBtn.onclick = function(){
+pauseBtn.onclick = function() {
+
+    if(!player){
+
+        return;
+
+    }
+
 
     player.pauseVideo();
 
@@ -599,8 +688,7 @@ pauseBtn.onclick = function(){
 
 
 
-
-showVideoBtn.onclick = function(){
+showVideoBtn.onclick = function() {
 
     document
     .getElementById("blindCover")
@@ -610,12 +698,11 @@ showVideoBtn.onclick = function(){
 
 
 
-
 // ----------------------------
 // Guess Submission
 // ----------------------------
 
-guessInput.oninput = function(){
+guessInput.oninput = function() {
 
     submitBtn.disabled =
     guessInput.value.trim() === "";
@@ -624,7 +711,7 @@ guessInput.oninput = function(){
 
 
 
-submitBtn.onclick = function(){
+submitBtn.onclick = function() {
 
 
     const guess =
