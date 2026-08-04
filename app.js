@@ -10,8 +10,6 @@ let player = null;
 
 let pendingStartTime = 0;
 let playerReady = false;
-let videoReady = false;
-let seeking = false;
 
 const MIN_DURATION = 60;
 
@@ -44,119 +42,23 @@ function onYouTubeIframeAPIReady() {
 
                 },
 
-
                 onStateChange: function(event) {
-
                     const state = event.data;
-
-
                     console.log(
                         "Player state:",
                         state
                     );
-
-
-                    if (
+                    if(
                         state === YT.PlayerState.PLAYING
-                        &&
-                        seeking
-                    ) {
-
+                    ){
                         console.log(
-                            "Seeking after playback start:",
-                            pendingStartTime
+                            "Playback began at:",
+                            player.getCurrentTime()
                         );
-
-
-                        player.seekTo(
-                            pendingStartTime,
-                            true
-                        );
-
-
-                        setTimeout(
-                            verifySeek,
-                            500
-                        );
-
+                        player.pauseVideo();
                     }
-
-
-                    if (
-                        state === YT.PlayerState.CUED
-                    ) {
-
-                        videoReady = true;
-
-                    }
-
                 }
-
-            }
-
-        }
-    );
-
-}
-
-
-
-// ----------------------------
-// Verify Seek
-// ----------------------------
-
-function verifySeek() {
-
-    const currentTime =
-    player.getCurrentTime();
-
-
-    console.log(
-        "Current player time:",
-        currentTime
-    );
-
-
-    if(
-        Math.abs(
-            currentTime - pendingStartTime
-        ) < 3
-    ){
-
-        console.log(
-            "Seek successful"
-        );
-
-
-        player.pauseVideo();
-
-        seeking = false;
-
-        return;
-
-    }
-
-
-    console.log(
-        "Seek retry"
-    );
-
-
-    player.seekTo(
-        pendingStartTime,
-        true
-    );
-
-
-    setTimeout(
-        verifySeek,
-        500
-    );
-
-}
-
-
-
+                
 // ----------------------------
 // Elements
 // ----------------------------
@@ -536,6 +438,7 @@ async function nextSong() {
 
     player.loadVideoById(
         current.id
+        startSeconds: pendingStartTime
     );
 
 
