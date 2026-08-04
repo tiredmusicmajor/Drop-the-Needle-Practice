@@ -8,7 +8,6 @@ let pendingStartTime = 0;
 
 const MIN_DURATION = 60;
 
-
 // ----------------------------
 // YouTube Player
 // ----------------------------
@@ -29,9 +28,29 @@ function onYouTubeIframeAPIReady() {
 
             events: {
 
-                onReady: function() {
+                onStateChange: function(event) {
 
-                    console.log("YouTube player ready");
+                    if (
+                        event.data === YT.PlayerState.CUED
+                    ) {
+
+                        console.log(
+                            "Seeking to:",
+                            pendingStartTime
+                        );
+
+                        setTimeout(() => {
+
+                            player.seekTo(
+                                pendingStartTime,
+                                true
+                            );
+
+                            player.pauseVideo();
+
+                        }, 250);
+
+                    }
 
                 }
 
@@ -435,9 +454,6 @@ async function nextSong(){
 
         videoId:
         current.id,
-
-        startSeconds:
-        pendingStartTime
 
     });
 
