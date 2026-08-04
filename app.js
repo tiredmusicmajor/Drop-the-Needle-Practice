@@ -4,28 +4,47 @@ let current = null;
 
 let player;
 
+let pendingStartTime = 0;
 
 const MIN_DURATION = 60;
 
 
-
-// YouTube player
+// ----------------------------
+// YouTube Player
+// ----------------------------
 
 function onYouTubeIframeAPIReady() {
-
 
     player = new YT.Player(
         "player",
         {
+            height: "100%",
+            width: "100%",
 
-            height:"100%",
-            width:"100%",
+            playerVars: {
+                controls: 0,
+                modestbranding: 1,
+                rel: 0
+            },
 
-            playerVars:{
+            events: {
 
-                controls:0,
-                modestbranding:1,
-                rel:0
+                onStateChange: function(event) {
+
+                    if (
+                        event.data === YT.PlayerState.CUED
+                    ) {
+
+                        player.seekTo(
+                            pendingStartTime,
+                            true
+                        );
+
+                        player.pauseVideo();
+
+                    }
+
+                }
 
             }
 
@@ -36,151 +55,177 @@ function onYouTubeIframeAPIReady() {
 
 
 
+// ----------------------------
 // Elements
+// ----------------------------
 
 const loadBtn =
 document.getElementById("loadBtn");
 
-
 const playBtn =
 document.getElementById("playBtn");
-
 
 const pauseBtn =
 document.getElementById("pauseBtn");
 
-
 const showVideoBtn =
 document.getElementById("showVideoBtn");
-
 
 const submitBtn =
 document.getElementById("submitBtn");
 
-
 const nextBtn =
 document.getElementById("nextBtn");
 
-
 const guessInput =
 document.getElementById("guessInput");
-
 
 const status =
 document.getElementById("status");
 
 
 
-
-// Restore saved fields
+// ----------------------------
+// Restore saved values
+// ----------------------------
 
 document.getElementById("playlistUrl").value =
 localStorage.playlistUrl || "";
-
 
 document.getElementById("apiKey").value =
 localStorage.apiKey || "";
 
 
 
+// ----------------------------
+// Load Playlist
+// ----------------------------
 
-// Load playlist
-
-loadBtn.onclick = async function(){
-
-
-const playlistUrl =
-document.getElementById("playlistUrl").value;
+loadBtn.onclick = async function() {
 
 
-const apiKey =
-document.getElementById("apiKey").value;
+    const playlistUrl =
+    document.getElementById("playlistUrl").value;
 
 
-localStorage.playlistUrl = playlistUrl;
-
-localStorage.apiKey = apiKey;
-
+    const apiKey =
+    document.getElementById("apiKey").value;
 
 
-let playlistId;
-
-
-try {
-
-
-playlistId =
-new URL(playlistUrl)
-.searchParams
-.get("list");
-
-
-}
-catch {
-
-
-status.textContent =
-"Invalid playlist URL";
-
-return;
-
-
-}
+    localStorage.playlistUrl = playlistUrl;
+    localStorage.apiKey = apiKey;
 
 
 
-if(!playlistId){
-
-status.textContent =
-"No playlist ID found";
-
-return;
-
-}
+    let playlistId;
 
 
+    try {
 
-status.textContent =
-"Loading playlist...";
+        playlistId =
+        new URL(playlistUrl)
+        .searchParams
+        .get("list");
 
+    }
 
+    catch {
 
-playlist =
-await getPlaylist(
-playlistId,
-apiKey
-);
+        status.textContent =
+        "Invalid playlist URL";
 
+        return;
 
-
-if(playlist.length===0){
-
-status.textContent =
-"No videos found";
-
-return;
-
-}
+    }
 
 
 
-shuffleDeck();
+    if(!playlistId){
+
+        status.textContent =
+        "Playlist ID not found";
+
+        return;
+
+    }
 
 
 
-document.getElementById("setup").hidden=true;
-
-document.getElementById("game").hidden=false;
-
-
-
-status.textContent =
-`${playlist.length} songs loaded`;
+    status.textContent =
+    "Loading playlist...";
 
 
 
-nextSong();
+    const cacheKey =
+    "playlist_" + playlistId;
 
+
+
+    const cached =
+    localStorage.getItem(cacheKey);
+
+
+
+    if(cached){
+
+        playlist =
+        JSON.parse(cached);
+
+    }
+
+    else {
+
+
+        playlist =
+        await getPlaylist(
+            playlistId,
+            apiKey
+        );
+
+
+        localStorage.setItem(
+            cacheKey,
+            JSON.stringify(playlist)
+        );
+
+    }
+
+
+
+    if(
+        playlist.length === 0
+    ){
+
+        status.textContent =
+        "No videos found";
+
+        return;
+
+    }
+
+
+
+    shuffleDeck();
+
+
+
+    document
+    .getElementById("setup")
+    .hidden = true;
+
+
+    document
+    .getElementById("game")
+    .hidden = false;
+
+
+
+    status.textContent =
+    `${playlist.length} songs loaded`;
+
+
+
+    nextSong();
 
 
 };
@@ -188,253 +233,296 @@ nextSong();
 
 
 
-
-
-// Fetch playlist
+// ----------------------------
+// Get Playlist
+// ----------------------------
 
 async function getPlaylist(id,key){
 
 
-let videos=[];
+    let videos = [];
 
-let token="";
-
-
-
-do{
-
-
-let url =
-"https://www.googleapis.com/youtube/v3/playlistItems"
-+
-"?part=snippet"
-+
-"&maxResults=50"
-+
-`&playlistId=${id}`
-+
-`&key=${key}`
-+
-`&pageToken=${token}`;
+    let token = "";
 
 
 
-let response =
-await fetch(url);
+    do {
 
 
-let data =
-await response.json();
+        const url =
+        "https://www.googleapis.com/youtube/v3/playlistItems"
+        +
+        "?part=snippet"
+        +
+        "&maxResults=50"
+        +
+        `&playlistId=${id}`
+        +
+        `&key=${key}`
+        +
+        `&pageToken=${token}`;
 
 
 
-if(data.error){
+        const response =
+        await fetch(url);
 
-alert(data.error.message);
 
-return [];
+
+        const data =
+        await response.json();
+
+
+
+        if(data.error){
+
+            alert(data.error.message);
+
+            return [];
+
+        }
+
+
+
+        data.items.forEach(item => {
+
+
+            videos.push({
+
+                id:
+                item.snippet.resourceId.videoId,
+
+                title:
+                item.snippet.title,
+
+                channel:
+                item.snippet.videoOwnerChannelTitle
+
+            });
+
+
+        });
+
+
+
+        token =
+        data.nextPageToken || "";
+
+
+
+    }
+    while(token);
+
+
+
+    return videos;
 
 }
 
 
 
-data.items.forEach(item=>{
-
-
-videos.push({
-
-id:
-item.snippet.resourceId.videoId,
-
-title:
-item.snippet.title,
-
-channel:
-item.snippet.videoOwnerChannelTitle
-
-});
-
-
-});
-
-
-
-token =
-data.nextPageToken || "";
-
-
-
-}
-while(token);
-
-
-
-return videos;
-
-
-}
-
-
-
-
-// Shuffle deck
+// ----------------------------
+// Shuffle
+// ----------------------------
 
 function shuffleDeck(){
 
 
-deck=[...playlist];
+    deck =
+    [...playlist];
 
 
 
-for(
-let i=deck.length-1;
-i>0;
-i--
-){
+    for(
+        let i = deck.length - 1;
+        i > 0;
+        i--
+    ){
+
+        let j =
+        Math.floor(
+            Math.random() * (i + 1)
+        );
 
 
-let j =
-Math.floor(
-Math.random()*(i+1)
-);
+        [
+            deck[i],
+            deck[j]
+        ]
+        =
+        [
+            deck[j],
+            deck[i]
+        ];
 
-
-
-[
-deck[i],
-deck[j]
-]
-=
-[
-deck[j],
-deck[i]
-];
-
-
-}
-
+    }
 
 }
 
 
 
-
-// Next song
+// ----------------------------
+// Next Song
+// ----------------------------
 
 async function nextSong(){
 
 
-document.getElementById("answer").hidden=true;
+    document
+    .getElementById("answer")
+    .hidden = true;
 
 
-document.getElementById("blindCover").style.display="flex";
+    document
+    .getElementById("blindCover")
+    .style.display = "flex";
 
 
-guessInput.value="";
+    guessInput.value = "";
 
-submitBtn.disabled=true;
+    submitBtn.disabled = true;
 
 
-if(deck.length===0){
 
-shuffleDeck();
+    if(deck.length === 0){
+
+        shuffleDeck();
+
+    }
+
+
+
+    current =
+    deck.pop();
+
+
+
+    const duration =
+    await getDuration(
+        current.id
+    );
+
+
+
+    if(duration < MIN_DURATION){
+
+        return nextSong();
+
+    }
+
+
+
+    pendingStartTime =
+    Math.floor(
+
+        duration * 0.2
+
+        +
+
+        Math.random()
+        *
+        (
+            duration * 0.6
+        )
+
+    );
+
+
+
+    player.cueVideoById({
+
+        videoId:
+        current.id
+
+    });
+
+
+
+    document
+    .getElementById("count")
+    .textContent =
+    `${playlist.length - deck.length} / ${playlist.length} played`;
+
+
+
+    nextBtn.disabled = true;
+
 
 }
 
 
 
-current =
-deck.pop();
 
-
-
-let duration =
-await getDuration(current.id);
-
-
-
-if(duration < MIN_DURATION){
-
-return nextSong();
-
-}
-
-
-
-let start =
-Math.floor(
-
-duration*0.2
-+
-Math.random()*
-(duration*0.6)
-
-);
-
-
-
-player.loadVideoById({
-
-videoId:
-current.id,
-
-startSeconds:
-start
-
-});
-
-
-
-document.getElementById("count").textContent =
-`${playlist.length-deck.length} / ${playlist.length} played`;
-
-
-
-nextBtn.disabled=true;
-
-
-}
-
-
-
-
-
-
-// Duration lookup
+// ----------------------------
+// Duration Cache
+// ----------------------------
 
 async function getDuration(id){
 
 
-let key =
-document.getElementById("apiKey").value;
+    const cacheKey =
+    "duration_" + id;
 
 
 
-let url =
-"https://www.googleapis.com/youtube/v3/videos"
-+
-"?part=contentDetails"
-+
-`&id=${id}`
-+
-`&key=${key}`;
+    const cached =
+    localStorage.getItem(cacheKey);
 
 
 
-let response =
-await fetch(url);
+    if(cached){
+
+        return Number(cached);
+
+    }
 
 
-let data =
-await response.json();
+
+    const key =
+    document
+    .getElementById("apiKey")
+    .value;
 
 
 
-return parseDuration(
-data.items[0]
-.contentDetails
-.duration
-);
+    const url =
+    "https://www.googleapis.com/youtube/v3/videos"
+    +
+    "?part=contentDetails"
+    +
+    `&id=${id}`
+    +
+    `&key=${key}`;
+
+
+
+    const response =
+    await fetch(url);
+
+
+
+    const data =
+    await response.json();
+
+
+
+    const duration =
+    parseDuration(
+        data.items[0]
+        .contentDetails
+        .duration
+    );
+
+
+
+    localStorage.setItem(
+        cacheKey,
+        duration
+    );
+
+
+
+    return duration;
 
 
 }
@@ -445,133 +533,127 @@ data.items[0]
 function parseDuration(value){
 
 
-let result =
-value.match(
-/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/
-);
+    const result =
+    value.match(
+    /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/
+    );
 
 
 
-return (
+    return (
 
-(result[1]||0)*3600
-+
-(result[2]||0)*60
-+
-(result[3]||0)
+        (result[1] || 0) * 3600
 
-);
+        +
 
+        (result[2] || 0) * 60
+
+        +
+
+        (result[3] || 0)
+
+    );
 
 }
 
 
 
+// ----------------------------
+// Controls
+// ----------------------------
 
+playBtn.onclick = function(){
 
-
-// Audio controls
-
-playBtn.onclick=function(){
-
-player.playVideo();
-
-};
-
-
-
-pauseBtn.onclick=function(){
-
-player.pauseVideo();
+    player.playVideo();
 
 };
 
 
 
+pauseBtn.onclick = function(){
 
-
-
-// Reveal video
-
-showVideoBtn.onclick=function(){
-
-
-document.getElementById("blindCover")
-.style.display="none";
-
+    player.pauseVideo();
 
 };
 
 
 
 
+showVideoBtn.onclick = function(){
 
-
-// Guess box
-
-guessInput.oninput=function(){
-
-
-submitBtn.disabled =
-guessInput.value.trim()==="";
-
+    document
+    .getElementById("blindCover")
+    .style.display = "none";
 
 };
 
 
 
 
+// ----------------------------
+// Guess Submission
+// ----------------------------
 
+guessInput.oninput = function(){
 
-// Submit answer
+    submitBtn.disabled =
+    guessInput.value.trim() === "";
 
-submitBtn.onclick=function(){
-
-
-let guess =
-guessInput.value.trim();
-
-
-
-document.getElementById("blindCover")
-.style.display="none";
+};
 
 
 
-document.getElementById("title")
-.textContent =
-current.title;
+submitBtn.onclick = function(){
+
+
+    const guess =
+    guessInput.value.trim();
 
 
 
-document.getElementById("channel")
-.textContent =
-current.channel;
+    document
+    .getElementById("blindCover")
+    .style.display = "none";
 
 
 
-document.getElementById("userGuess")
-.textContent =
-guess;
+    document
+    .getElementById("title")
+    .textContent =
+    current.title;
 
 
 
-document.getElementById("answer")
-.hidden=false;
+    document
+    .getElementById("channel")
+    .textContent =
+    current.channel;
 
 
 
-nextBtn.disabled=false;
+    document
+    .getElementById("userGuess")
+    .textContent =
+    guess;
+
+
+
+    document
+    .getElementById("answer")
+    .hidden = false;
+
+
+
+    nextBtn.disabled = false;
 
 
 };
 
 
 
-
-
-
-// Next button
+// ----------------------------
+// Next Button
+// ----------------------------
 
 nextBtn.onclick =
 nextSong;
