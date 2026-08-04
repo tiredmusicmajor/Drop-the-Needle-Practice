@@ -51,8 +51,13 @@
 
       <button id="playBtn">👁 Show Video</button>
 
-      <button id="revealBtn">
-        Reveal
+      <input 
+        id="guessInput" 
+        type="text" 
+        placeholder="Enter your guess..."
+      >
+      <button id="submitBtn" disabled>
+        Submit Answer
       </button>
 
       <button id="nextBtn" disabled>
@@ -64,9 +69,14 @@
 
     <div id="answer" hidden>
 
+      <h2>Correct Answer:</h2>
       <h2 id="title"></h2>
 
       <p id="channel"></p>
+      <p>
+        Your guess:
+        <span id="userGuess"></span>
+      </p>
 
     </div>
 
