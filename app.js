@@ -58,6 +58,9 @@ function onYouTubeIframeAPIReady() {
                         player.pauseVideo();
                     }
                 }
+            }
+        }
+        }
                 
 // ----------------------------
 // Elements
