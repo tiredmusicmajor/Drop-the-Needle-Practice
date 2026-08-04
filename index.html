@@ -1,87 +1,166 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mystery Playlist</title>
-  <link rel="stylesheet" href="style.css">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Mystery Playlist</title>
+
+<link rel="stylesheet" href="style.css">
+
 </head>
+
 
 <body>
 
 <div class="container">
 
-  <h1>🎵 Mystery Playlist</h1>
 
-  <section id="setup">
-
-    <label>
-      YouTube Playlist URL
-      <input id="playlistUrl" placeholder="https://youtube.com/playlist?list=...">
-    </label>
-
-    <label>
-      YouTube API Key
-      <input id="apiKey" type="password" placeholder="AIza...">
-    </label>
-
-    <button id="loadBtn">Load Playlist</button>
-
-    <p id="status"></p>
-
-  </section>
+<h1>🎵 Mystery Playlist</h1>
 
 
-  <section id="game" hidden>
-
-    <p id="count"></p>
-
-    <div class="player-wrapper">
-
-      <div id="blindCover">
-        <span>?</span>
-      </div>
-
-      <div id="player"></div>
-
-    </div>
+<section id="setup">
 
 
-    <div class="buttons">
-      <button id="playBtn">▶ Play Audio</button>
-      <button id="pauseBtn">⏸ Pause Audio</button>
-      <button id="showVideoBtn">👁 Show Video</button>
-      <input id="guessInput" type="text" placeholder="Enter your guess...">
-      <button id="submitBtn" disabled>
-        Submit Answer
-      </button>
-      <button id="nextBtn" disabled>
-        Next Song
-      </button>
-    </div>
+<label>
+YouTube Playlist URL
+
+<input 
+id="playlistUrl"
+placeholder="https://youtube.com/playlist?list=..."
+>
+
+</label>
 
 
-    <div id="answer" hidden>
+<label>
+YouTube API Key
 
-      <h2>Correct Answer:</h2>
-      <h2 id="title"></h2>
+<input 
+id="apiKey"
+type="password"
+placeholder="AIza..."
+>
 
-      <p id="channel"></p>
-      <p>
-        Your guess:
-        <span id="userGuess"></span>
-      </p>
-
-    </div>
+</label>
 
 
-  </section>
+<button id="loadBtn">
+Load Playlist
+</button>
+
+
+<p id="status"></p>
+
+
+</section>
+
+
+
+<section id="game" hidden>
+
+
+<p id="count"></p>
+
+
+
+<div class="player-wrapper">
+
+
+<div id="blindCover">
+
+<span>?</span>
 
 </div>
 
 
+<div id="player"></div>
+
+
+</div>
+
+
+
+<div class="buttons">
+
+
+<button id="playBtn">
+▶ Play Audio
+</button>
+
+
+<button id="pauseBtn">
+⏸ Pause Audio
+</button>
+
+
+<button id="showVideoBtn">
+👁 Show Video
+</button>
+
+
+
+<br>
+
+
+
+<input
+id="guessInput"
+placeholder="Enter your guess..."
+>
+
+
+
+<button id="submitBtn" disabled>
+Submit Answer
+</button>
+
+
+
+<button id="nextBtn" disabled>
+Next Song
+</button>
+
+
+</div>
+
+
+
+
+<div id="answer" hidden>
+
+
+<h2>Correct Answer:</h2>
+
+<h2 id="title"></h2>
+
+<p id="channel"></p>
+
+
+<p>
+Your guess:
+<span id="userGuess"></span>
+</p>
+
+
+</div>
+
+
+
+</section>
+
+
+</div>
+
+
+
 <script src="https://www.youtube.com/iframe_api"></script>
+
 <script src="app.js"></script>
 
+
 </body>
+
 </html>
