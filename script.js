@@ -8,7 +8,7 @@ const state = {
   apiKey: null,
   playlistId: null,
   videos: [],        // [{ id, title }] — title kept hidden from the UI until reveal
-  recentIds: [],      // small ring buffer to avoid immediate repeats
+  deck: [],          // shuffled queue of videos for the current pass through the playlist
   current: null,      // { id, title, startSeconds }
   player: null,
   playerReady: false,
@@ -43,6 +43,7 @@ const els = {
   answerLink: $('answer-link'),
   nextBtn: $('next-btn'),
   scoreTotal: $('score-total'),
+  lapNote: $('lap-note'),
   gameError: $('game-error'),
 };
 
@@ -194,14 +195,42 @@ function ensurePlayer() {
 }
 
 /* ---------- game logic ---------- */
-function pickRandomVideo() {
-  const pool = state.videos.filter((v) => !state.recentIds.includes(v.id));
-  const usable = pool.length > 0 ? pool : state.videos;
-  const video = usable[Math.floor(Math.random() * usable.length)];
+function shuffle(array) {
+  const copy = array.slice();
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
 
-  state.recentIds.push(video.id);
-  const memory = Math.min(8, Math.floor(state.videos.length / 2));
-  if (state.recentIds.length > memory) state.recentIds.shift();
+function buildDeck() {
+  state.deck = shuffle(state.videos);
+}
+
+function nextVideoFromDeck() {
+  if (state.deck.length === 0) {
+    buildDeck();
+    // Don't let the same track land twice in a row across the reshuffle seam.
+    if (state.current && state.deck.length > 1 && state.deck[0].id === state.current.id) {
+      [state.deck[0], state.deck[1]] = [state.deck[1], state.deck[0]];
+    }
+    showLapNote();
+  }
+  return state.deck.shift();
+}
+
+let lapNoteTimer = null;
+function showLapNote() {
+  if (!state.current) return; // don't show it on the very first round
+  clearTimeout(lapNoteTimer);
+  els.lapNote.textContent = `Heard all ${state.videos.length} tracks \u2014 starting a new pass.`;
+  els.lapNote.hidden = false;
+  lapNoteTimer = setTimeout(() => { els.lapNote.hidden = true; }, 4000);
+}
+
+function pickRandomVideo() {
+  const video = nextVideoFromDeck();
 
   // Pick a start point with room to listen: skip the first few seconds and
   // leave at least 15s (or 15% of the length) before the end.
@@ -288,6 +317,7 @@ async function handleStart() {
     state.videos = await loadPlaylist(apiKey, playlistId);
     state.playedCount = 0;
     els.scoreTotal.textContent = '0';
+    buildDeck();
     showScreen('game');
     await playRound();
   } catch (err) {
