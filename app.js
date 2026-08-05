@@ -438,28 +438,18 @@ async function nextSong() {
         pendingStartTime
     );
 
-
-
-    seeking = true;
-
-
-
-    videoReady = false;
-
-
-
     /*
-        We intentionally use loadVideoById
+        I intentionally use loadVideoById
         instead of cueVideoById.
 
         The player must actually initialize
         the media before seeking is reliable.
     */
 
-    player.loadVideoById(
-        current.id
+    player.loadVideoById({
+        current.id,
         startSeconds: pendingStartTime
-    );
+    });
 
 
 
