@@ -1,83 +1,135 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mystery Playlist</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blind Listening Test</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 
-<div class="container">
+<div class="grain"></div>
 
-  <h1>🎵 Mystery Playlist</h1>
+<header class="masthead">
+  <div class="masthead-inner">
+    <span class="eyebrow">No. 1 &mdash; A Listening Programme</span>
+    <h1>Blind Listening Test</h1>
+    <p class="tagline">Drop in on a random moment. Name what you hear.</p>
+  </div>
+</header>
 
-  <section id="setup">
+<main>
 
-    <label>
-      YouTube Playlist URL
-      <input id="playlistUrl" placeholder="https://youtube.com/playlist?list=...">
-    </label>
+  <!-- ============ SETUP SCREEN ============ -->
+  <section id="setup-screen" class="screen">
+    <div class="card program-card">
+      <div class="program-card-label">Before the programme begins</div>
 
-    <label>
-      YouTube API Key
-      <input id="apiKey" type="password" placeholder="AIza...">
-    </label>
+      <label class="field">
+        <span class="field-label">YouTube Data API key</span>
+        <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="AIzaSy...">
+        <span class="field-hint">Kept only in this browser (localStorage). Never sent anywhere but Google's API. <a href="#" id="how-to-key-link">How do I get one?</a></span>
+      </label>
 
-    <button id="loadBtn">Load Playlist</button>
+      <label class="field">
+        <span class="field-label">Playlist URL or ID</span>
+        <input id="playlist-input" type="text" autocomplete="off" spellcheck="false" placeholder="https://www.youtube.com/playlist?list=PL...">
+        <span class="field-hint">Must be Public or Unlisted &mdash; Private playlists can't be read by the API.</span>
+      </label>
 
-    <p id="status"></p>
-
-  </section>
-
-
-  <section id="game" hidden>
-
-    <p id="count"></p>
-
-    <div class="player-wrapper">
-
-      <div id="blindCover">
-        <span>?</span>
+      <div class="field checkbox-field">
+        <label class="checkbox-label">
+          <input type="checkbox" id="hide-video-toggle" checked>
+          <span>Hide video while playing (audio-only guessing)</span>
+        </label>
       </div>
 
-      <div id="player"></div>
-
+      <button id="start-btn" class="btn btn-primary">Begin the programme</button>
+      <p id="setup-error" class="error-msg" hidden></p>
     </div>
 
-
-    <div class="buttons">
-
-      <button id="playBtn">👁 Show Video</button>
-
-      <button id="revealBtn">
-        Reveal
-      </button>
-
-      <button id="nextBtn" disabled>
-        Next Song
-      </button>
-
+    <div id="how-to-key" class="card info-card" hidden>
+      <div class="program-card-label">Getting an API key</div>
+      <ol>
+        <li>Go to the <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a> and create (or select) a project.</li>
+        <li>Enable the <strong>YouTube Data API v3</strong> under "APIs &amp; Services &rarr; Library".</li>
+        <li>Create credentials &rarr; <strong>API key</strong>.</li>
+        <li>Click the new key and restrict it: under "Application restrictions" choose <strong>Websites</strong> and add your GitHub Pages URL. Under "API restrictions" limit it to <strong>YouTube Data API v3</strong> only.</li>
+      </ol>
+      <p class="small-note">Restricting the key matters &mdash; it lives in your browser and is visible to anyone who opens dev tools.</p>
     </div>
-
-
-    <div id="answer" hidden>
-
-      <h2 id="title"></h2>
-
-      <p id="channel"></p>
-
-    </div>
-
-
   </section>
 
-</div>
+  <!-- ============ LOADING SCREEN ============ -->
+  <section id="loading-screen" class="screen" hidden>
+    <div class="card center-card">
+      <div class="spinner" aria-hidden="true"></div>
+      <p id="loading-text">Loading playlist&hellip;</p>
+    </div>
+  </section>
 
+  <!-- ============ GAME SCREEN ============ -->
+  <section id="game-screen" class="screen" hidden>
+
+    <div class="scoreboard">
+      <div class="score-item">
+        <span class="score-num" id="score-correct">0</span>
+        <span class="score-label">Correct</span>
+      </div>
+      <div class="score-item">
+        <span class="score-num" id="score-missed">0</span>
+        <span class="score-label">Missed</span>
+      </div>
+      <div class="score-item">
+        <span class="score-num" id="score-total">0</span>
+        <span class="score-label">Played</span>
+      </div>
+      <button id="change-playlist-btn" class="btn btn-ghost btn-small">Change playlist</button>
+    </div>
+
+    <div class="stage card">
+      <div id="player-wrap" class="player-wrap">
+        <div id="player"></div>
+        <div id="player-shade" class="player-shade">
+          <span class="shade-icon" aria-hidden="true">&#9834;</span>
+          <span class="shade-text">Listening&hellip;</span>
+        </div>
+      </div>
+
+      <div class="stage-footer">
+        <div id="pre-reveal" class="pre-reveal">
+          <p class="prompt">What are you hearing?</p>
+          <button id="reveal-btn" class="btn btn-primary">Reveal answer</button>
+        </div>
+
+        <div id="post-reveal" class="post-reveal" hidden>
+          <div class="answer-ticket">
+            <div class="ticket-label">Now playing</div>
+            <div class="ticket-title" id="answer-title">&mdash;</div>
+            <a id="answer-link" class="ticket-link" href="#" target="_blank" rel="noopener">Watch on YouTube &rarr;</a>
+          </div>
+          <div class="judgement-row">
+            <button id="mark-correct" class="btn btn-correct">I got it</button>
+            <button id="mark-missed" class="btn btn-missed">I missed it</button>
+          </div>
+          <button id="next-btn" class="btn btn-primary btn-wide">Next round &rarr;</button>
+        </div>
+      </div>
+    </div>
+
+    <p id="game-error" class="error-msg" hidden></p>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <span>Runs entirely in your browser. Nothing is stored except your API key and playlist, locally.</span>
+</footer>
 
 <script src="https://www.youtube.com/iframe_api"></script>
-<script src="app.js"></script>
-
+<script src="script.js"></script>
 </body>
 </html>
