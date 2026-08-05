@@ -171,8 +171,7 @@ main {
 }
 .btn-ghost:hover { color: var(--text); border-color: var(--text-muted); }
 .btn-small { padding: 0.45rem 0.8rem; font-size: 0.78rem; }
-.btn-correct { background: var(--sage); color: #16210f; flex: 1; }
-.btn-missed { background: var(--clay); color: #260f07; flex: 1; }
+
 
 .error-msg {
   color: var(--clay);
@@ -250,6 +249,18 @@ main {
 
 .stage-footer { padding: 1.5rem 1.75rem 1.75rem; }
 
+.playback-row {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px dashed var(--line);
+}
+.playback-row .btn-ghost.is-paused {
+  color: var(--gold);
+  border-color: var(--gold-dim);
+}
+
 .pre-reveal { text-align: center; }
 .prompt {
   font-family: var(--serif);
@@ -258,6 +269,38 @@ main {
   color: var(--text-muted);
   margin: 0 0 1rem;
 }
+
+.guess-field {
+  display: block;
+  text-align: left;
+  margin-bottom: 1.1rem;
+}
+.guess-field .field-label {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+.guess-field input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--serif);
+  font-size: 1rem;
+  padding: 0.7rem 0.8rem;
+}
+.guess-field input:focus { outline: none; border-color: var(--gold); }
+
+.guess-recap {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: -0.4rem 0 1.1rem;
+}
+.guess-recap strong { color: var(--text); font-weight: 500; }
 
 /* ---------- answer ticket (signature element) ---------- */
 .answer-ticket {
@@ -298,8 +341,6 @@ main {
   margin-bottom: 0.5rem;
 }
 .ticket-link { font-size: 0.85rem; }
-
-.judgement-row { display: flex; gap: 0.75rem; margin-bottom: 0.5rem; }
 
 /* ---------- footer ---------- */
 .site-footer {
