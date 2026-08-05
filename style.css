@@ -217,6 +217,14 @@ main {
 }
 .scoreboard .btn-ghost { margin-left: auto; }
 
+.lap-note {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  color: var(--gold);
+  margin: -0.9rem 0 1.25rem;
+}
+
 /* ---------- stage / player ---------- */
 .stage { padding: 0; overflow: hidden; }
 .player-wrap {
