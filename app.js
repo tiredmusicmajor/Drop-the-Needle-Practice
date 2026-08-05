@@ -1,454 +1,303 @@
-// ----------------------------
-// State
-// ----------------------------
+let apiKey = "";
+let playlistId = "";
 
-let playlist = [];
-let deck = [];
-let current = null;
+let videos = [];
+let currentVideo = null;
 
-let player = null;
+let player;
 let playerReady = false;
 
-let pendingStartTime = 0;
-let hasSeeked = false;
+let currentStartTime = 0;
 
-const MIN_DURATION = 60;
-
-
-// ----------------------------
-// YouTube Player
-// ----------------------------
-
+// YouTube iframe API callback
 function onYouTubeIframeAPIReady() {
+playerReady = true;
+}
 
-    player = new YT.Player(
-        "player",
-        {
-            height: "100%",
-            width: "100%",
+// Extract playlist ID from URL
+function extractPlaylistId(url) {
 
-            playerVars: {
-                controls: 0,
-                modestbranding: 1,
-                rel: 0
-            },
+```
+const match = url.match(/[?&]list=([^&]+)/);
 
-            events: {
+if (!match) {
+    alert("Could not find playlist ID.");
+    return null;
+}
 
-                onReady: function() {
+return match[1];
+```
 
-                    console.log("YouTube player ready");
+}
 
-                    playerReady = true;
+// Start game setup
+async function initializeGame() {
 
-                },
+```
+apiKey = document.getElementById("apiKey").value.trim();
 
-
-                onStateChange: function(event) {
-
-                    if(
-                        event.data === YT.PlayerState.PLAYING
-                    ){
-
-                        console.log(
-                            "Playing at:",
-                            player.getCurrentTime()
-                        );
-
-
-                        if(!hasSeeked && pendingStartTime > 0){
-
-                            hasSeeked = true;
-
-                            console.log(
-                                "Waiting before seek..."
-                            );
-                            
-                            setTimeout(() => {
-                                console.log(
-                                    "Seeking to:",
-                                    pendingStartTime
-                                );
-                                
-                                player.seekTo(
-                                    pendingStartTime,
-                                    true
-                                );
-                            }, 1500);
-                        }              
-                    }
-                }
-
-
-// ----------------------------
-// Elements
-// ----------------------------
-
-const loadBtn =
-document.getElementById("loadBtn");
-
-const playBtn =
-document.getElementById("playBtn");
-
-const pauseBtn =
-document.getElementById("pauseBtn");
-
-const showVideoBtn =
-document.getElementById("showVideoBtn");
-
-const submitBtn =
-document.getElementById("submitBtn");
-
-const nextBtn =
-document.getElementById("nextBtn");
-
-const guessInput =
-document.getElementById("guessInput");
-
-const status =
-document.getElementById("status");
-
-
-// ----------------------------
-// Load Playlist
-// ----------------------------
-
-loadBtn.onclick = async function(){
-
-    const url =
-    document.getElementById("playlistUrl").value;
-
-    const key =
-    document.getElementById("apiKey").value;
-
-
-    const playlistId =
-    new URL(url)
-    .searchParams
-    .get("list");
-
-
-    if(!playlistId){
-
-        status.textContent =
-        "Invalid playlist";
-
-        return;
-
-    }
-
-
-    status.textContent =
-    "Loading...";
-
-
-    playlist =
-    await getPlaylist(
-        playlistId,
-        key
+playlistId =
+    extractPlaylistId(
+        document.getElementById("playlistUrl").value.trim()
     );
 
+if (!apiKey || !playlistId) {
+    return;
+}
 
-    if(!playlist.length){
 
-        status.textContent =
-        "No songs found";
+videos = await loadPlaylistVideos();
 
-        return;
 
+if (videos.length === 0) {
+    alert("No videos found.");
+    return;
+}
+
+
+document.getElementById("setup").style.display = "none";
+document.getElementById("game").style.display = "block";
+
+
+startRound();
+```
+
+}
+
+// Load playlist entries
+async function loadPlaylistVideos() {
+
+```
+let results = [];
+
+let nextPage = "";
+
+
+do {
+
+    let url =
+        "https://www.googleapis.com/youtube/v3/playlistItems" +
+        "?part=snippet" +
+        "&maxResults=50" +
+        "&playlistId=" + playlistId +
+        "&key=" + apiKey +
+        (nextPage ? "&pageToken=" + nextPage : "");
+
+
+    const response = await fetch(url);
+
+    const data = await response.json();
+
+
+    if (data.error) {
+        alert(data.error.message);
+        return [];
     }
 
 
-    shuffleDeck();
+    for (const item of data.items) {
 
-
-    document.getElementById("setup").hidden=true;
-    document.getElementById("game").hidden=false;
-
-
-    status.textContent =
-    `${playlist.length} songs loaded`;
-
-
-    nextSong();
-
-};
-
-
-// ----------------------------
-// Get Playlist
-// ----------------------------
-
-async function getPlaylist(id,key){
-
-    let results=[];
-    let token="";
-
-
-    do{
-
-        const response =
-        await fetch(
-            "https://www.googleapis.com/youtube/v3/playlistItems" +
-            "?part=snippet" +
-            "&maxResults=50" +
-            `&playlistId=${id}` +
-            `&key=${key}` +
-            `&pageToken=${token}`
-        );
-
-
-        const data =
-        await response.json();
-
-
-        data.items.forEach(item=>{
-
-            results.push({
-
-                id:
-                item.snippet.resourceId.videoId,
-
-                title:
-                item.snippet.title,
-
-                channel:
-                item.snippet.videoOwnerChannelTitle
-
-            });
-
+        results.push({
+            id: item.snippet.resourceId.videoId,
+            title: item.snippet.title
         });
 
-
-        token =
-        data.nextPageToken || "";
-
-
     }
-    while(token);
 
 
-    return results;
+    nextPage = data.nextPageToken || "";
+
+
+} while (nextPage);
+
+
+return results;
+```
 
 }
 
+// Begin a new round
+async function startRound() {
 
-// ----------------------------
-// Shuffle
-// ----------------------------
+```
+document.getElementById("answer").innerHTML = "";
+document.getElementById("guess").value = "";
 
-function shuffleDeck(){
-
-    deck=[...playlist];
-
-
-    for(
-        let i=deck.length-1;
-        i>0;
-        i--
-    ){
-
-        const j =
-        Math.floor(
-            Math.random()*(i+1)
-        );
+document.getElementById("video-cover").style.display = "block";
 
 
-        [
-            deck[i],
-            deck[j]
-        ] =
-        [
-            deck[j],
-            deck[i]
-        ];
-
-    }
-
-}
+currentVideo =
+    videos[
+        Math.floor(Math.random() * videos.length)
+    ];
 
 
-// ----------------------------
-// Next Song
-// ----------------------------
-
-async function nextSong(){
-
-    document.getElementById("answer").hidden=true;
-
-    document.getElementById("blindCover")
-    .style.display="flex";
+const duration =
+    await getVideoDuration(currentVideo.id);
 
 
-    guessInput.value="";
-
-    submitBtn.disabled=true;
-
-
-    if(deck.length===0){
-
-        shuffleDeck();
-
-    }
-
-
-    current =
-    deck.pop();
-
-
-    const duration =
-    await getDuration(current.id);
-
-
-    if(duration < MIN_DURATION){
-
-        return nextSong();
-
-    }
-
-
-    pendingStartTime =
+currentStartTime =
     Math.floor(
-        duration * .2 +
-        Math.random() *
-        duration * .6
+        duration * (0.1 + Math.random() * 0.8)
     );
 
 
-    hasSeeked=false;
-
-
-    console.log(
-        "Selected:",
-        current.title
-    );
-
-    console.log(
-        "Start:",
-        pendingStartTime
-    );
-
-
-    player.loadVideoById(
-        current.id
-    );
-
-
-    nextBtn.disabled=true;
+loadVideo(
+    currentVideo.id,
+    currentStartTime
+);
+```
 
 }
 
+// Get video duration
+async function getVideoDuration(videoId) {
 
-// ----------------------------
-// Duration
-// ----------------------------
-
-async function getDuration(id){
-
-    const key =
-    document.getElementById("apiKey").value;
-
-
-    const response =
-    await fetch(
-        "https://www.googleapis.com/youtube/v3/videos" +
-        "?part=contentDetails" +
-        `&id=${id}` +
-        `&key=${key}`
-    );
+```
+const url =
+    "https://www.googleapis.com/youtube/v3/videos" +
+    "?part=contentDetails" +
+    "&id=" + videoId +
+    "&key=" + apiKey;
 
 
-    const data =
-    await response.json();
+const response = await fetch(url);
+const data = await response.json();
 
 
-    return parseDuration(
-        data.items[0]
-        .contentDetails
-        .duration
-    );
+const duration =
+    data.items[0]
+    .contentDetails
+    .duration;
+
+
+return parseDuration(duration);
+```
 
 }
 
+// Convert ISO duration to seconds
+function parseDuration(duration) {
 
-function parseDuration(value){
-
-    const match =
-    value.match(
+```
+const match =
+    duration.match(
         /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/
     );
 
 
-    return (
-        (match[1]||0)*3600 +
-        (match[2]||0)*60 +
-        (match[3]||0)
-    );
+const hours =
+    parseInt(match[1] || 0);
+
+const minutes =
+    parseInt(match[2] || 0);
+
+const seconds =
+    parseInt(match[3] || 0);
+
+
+return hours * 3600 +
+       minutes * 60 +
+       seconds;
+```
 
 }
 
+// Load YouTube player
+function loadVideo(videoId, startTime) {
 
-// ----------------------------
-// Buttons
-// ----------------------------
+```
+if (player) {
 
-playBtn.onclick=function(){
+    player.loadVideoById({
+        videoId: videoId,
+        startSeconds: startTime
+    });
 
-    player.playVideo();
+    return;
+}
 
-};
+
+player =
+    new YT.Player(
+        "player",
+        {
+            videoId: videoId,
+
+            playerVars: {
+                autoplay: 1,
+                controls: 0
+            },
+
+            events: {
+
+                onReady: function(event) {
+
+                    event.target.seekTo(startTime);
+                    event.target.playVideo();
+
+                }
+
+            }
+
+        }
+    );
+```
+
+}
+
+// Play/pause button
+function toggleAudio() {
+
+```
+if (!player) {
+    return;
+}
 
 
-pauseBtn.onclick=function(){
+const state =
+    player.getPlayerState();
+
+
+if (
+    state === YT.PlayerState.PLAYING
+) {
 
     player.pauseVideo();
 
-};
+} else {
+
+    player.playVideo();
+
+}
+```
+
+}
+
+// Reveal answer
+function revealAnswer() {
+
+```
+document.getElementById("answer")
+    .innerHTML =
+    currentVideo.title;
 
 
-showVideoBtn.onclick=function(){
+document.getElementById("video-cover")
+    .style.display = "none";
+```
 
-    document.getElementById("blindCover")
-    .style.display="none";
+}
 
-};
+// Next song
+function nextSong() {
 
+```
+if (player) {
+    player.stopVideo();
+}
 
-guessInput.oninput=function(){
+startRound();
+```
 
-    submitBtn.disabled =
-    guessInput.value.trim()==="";
-
-};
-
-
-submitBtn.onclick=function(){
-
-    document.getElementById("blindCover")
-    .style.display="none";
-
-
-    document.getElementById("title")
-    .textContent=current.title;
-
-
-    document.getElementById("channel")
-    .textContent=current.channel;
-
-
-    document.getElementById("userGuess")
-    .textContent=
-    guessInput.value;
-
-
-    document.getElementById("answer")
-    .hidden=false;
-
-
-    nextBtn.disabled=false;
-
-};
-
-
-nextBtn.onclick =
-nextSong;
+}
