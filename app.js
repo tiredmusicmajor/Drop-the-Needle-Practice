@@ -50,39 +50,34 @@ function onYouTubeIframeAPIReady() {
 
                 onStateChange: function(event) {
 
-                    const state = event.data;
-
-
                     console.log(
                         "Player state:",
-                        state
+                        event.data
                     );
 
 
                     if(
-                        state === YT.PlayerState.PLAYING
-                        &&
-                        seeking
+                        event.data === YT.PlayerState.CUED
                     ){
 
                         console.log(
-                            "Started at:",
+                            "Video cued at:",
                             player.getCurrentTime()
                         );
 
 
-                        player.seekTo(
-                            pendingStartTime,
-                            true
-                        );
+                        player.playVideo();
+
+                    }
 
 
-                        seeking = false;
-
+                    if(
+                        event.data === YT.PlayerState.PLAYING
+                    ){
 
                         console.log(
-                            "Seeking to:",
-                            pendingStartTime
+                            "Playing at:",
+                            player.getCurrentTime()
                         );
 
                     }
@@ -483,9 +478,10 @@ async function nextSong() {
 
 
 
-    player.loadVideoById({
-        videoId: current.id
-    });
+   player.cueVideoById({
+       videoId: current.id,
+       startSeconds: pendingStartTime
+   });
 
 
 
