@@ -9,6 +9,9 @@ let current = null;
 let player = null;
 let playerReady = false;
 
+let pendingStartTime = 0;
+let hasSeeked = false;
+
 const MIN_DURATION = 60;
 
 
@@ -27,32 +30,55 @@ function onYouTubeIframeAPIReady() {
             playerVars: {
                 controls: 0,
                 modestbranding: 1,
-                rel: 0,
-                enablejsapi: 1
+                rel: 0
             },
 
             events: {
 
                 onReady: function() {
 
-                    console.log(
-                        "YouTube player ready"
-                    );
+                    console.log("YouTube player ready");
 
                     playerReady = true;
 
                 },
 
+
                 onStateChange: function(event) {
 
-                    console.log(
-                        "Player state:",
-                        event.data
-                    );
+                    if(
+                        event.data === YT.PlayerState.PLAYING
+                    ){
+
+                        console.log(
+                            "Playing at:",
+                            player.getCurrentTime()
+                        );
+
+
+                        if(!hasSeeked && pendingStartTime > 0){
+
+                            hasSeeked = true;
+
+                            console.log(
+                                "Seeking to:",
+                                pendingStartTime
+                            );
+
+
+                            player.seekTo(
+                                pendingStartTime,
+                                true
+                            );
+
+                        }
+
+                    }
 
                 }
 
             }
+
         }
     );
 
@@ -66,59 +92,51 @@ function onYouTubeIframeAPIReady() {
 const loadBtn =
 document.getElementById("loadBtn");
 
+const playBtn =
+document.getElementById("playBtn");
+
+const pauseBtn =
+document.getElementById("pauseBtn");
+
+const showVideoBtn =
+document.getElementById("showVideoBtn");
+
+const submitBtn =
+document.getElementById("submitBtn");
+
 const nextBtn =
 document.getElementById("nextBtn");
-
-const status =
-document.getElementById("status");
 
 const guessInput =
 document.getElementById("guessInput");
 
-const submitBtn =
-document.getElementById("submitBtn");
+const status =
+document.getElementById("status");
 
 
 // ----------------------------
 // Load Playlist
 // ----------------------------
 
-loadBtn.onclick = async function() {
+loadBtn.onclick = async function(){
 
-    const playlistUrl =
+    const url =
     document.getElementById("playlistUrl").value;
 
-
-    const apiKey =
+    const key =
     document.getElementById("apiKey").value;
 
 
-    let playlistId;
-
-
-    try {
-
-        playlistId =
-        new URL(playlistUrl)
-        .searchParams
-        .get("list");
-
-    }
-
-    catch {
-
-        status.textContent =
-        "Invalid playlist URL";
-
-        return;
-
-    }
+    const playlistId =
+    new URL(url)
+    .searchParams
+    .get("list");
 
 
     if(!playlistId){
 
         status.textContent =
-        "Playlist ID not found";
+        "Invalid playlist";
 
         return;
 
@@ -126,20 +144,20 @@ loadBtn.onclick = async function() {
 
 
     status.textContent =
-    "Loading playlist...";
+    "Loading...";
 
 
     playlist =
     await getPlaylist(
         playlistId,
-        apiKey
+        key
     );
 
 
-    if(playlist.length === 0){
+    if(!playlist.length){
 
         status.textContent =
-        "No videos found";
+        "No songs found";
 
         return;
 
@@ -149,14 +167,8 @@ loadBtn.onclick = async function() {
     shuffleDeck();
 
 
-    document
-    .getElementById("setup")
-    .hidden = true;
-
-
-    document
-    .getElementById("game")
-    .hidden = false;
+    document.getElementById("setup").hidden=true;
+    document.getElementById("game").hidden=false;
 
 
     status.textContent =
@@ -172,51 +184,32 @@ loadBtn.onclick = async function() {
 // Get Playlist
 // ----------------------------
 
-async function getPlaylist(id, key) {
+async function getPlaylist(id,key){
 
-    let videos = [];
+    let results=[];
+    let token="";
 
-    let token = "";
 
-
-    do {
-
-        const url =
-        "https://www.googleapis.com/youtube/v3/playlistItems"
-        +
-        "?part=snippet"
-        +
-        "&maxResults=50"
-        +
-        `&playlistId=${id}`
-        +
-        `&key=${key}`
-        +
-        `&pageToken=${token}`;
-
+    do{
 
         const response =
-        await fetch(url);
+        await fetch(
+            "https://www.googleapis.com/youtube/v3/playlistItems" +
+            "?part=snippet" +
+            "&maxResults=50" +
+            `&playlistId=${id}` +
+            `&key=${key}` +
+            `&pageToken=${token}`
+        );
 
 
         const data =
         await response.json();
 
 
-        if(data.error){
+        data.items.forEach(item=>{
 
-            alert(
-                data.error.message
-            );
-
-            return [];
-
-        }
-
-
-        data.items.forEach(item => {
-
-            videos.push({
+            results.push({
 
                 id:
                 item.snippet.resourceId.videoId,
@@ -240,7 +233,7 @@ async function getPlaylist(id, key) {
     while(token);
 
 
-    return videos;
+    return results;
 
 }
 
@@ -251,19 +244,18 @@ async function getPlaylist(id, key) {
 
 function shuffleDeck(){
 
-    deck =
-    [...playlist];
+    deck=[...playlist];
 
 
     for(
-        let i = deck.length - 1;
-        i > 0;
+        let i=deck.length-1;
+        i>0;
         i--
     ){
 
         const j =
         Math.floor(
-            Math.random() * (i + 1)
+            Math.random()*(i+1)
         );
 
 
@@ -287,28 +279,18 @@ function shuffleDeck(){
 
 async function nextSong(){
 
-    if(!playerReady){
+    document.getElementById("answer").hidden=true;
 
-        console.log(
-            "Player not ready"
-        );
-
-        return;
-
-    }
+    document.getElementById("blindCover")
+    .style.display="flex";
 
 
-    document
-    .getElementById("blindCover")
-    .style.display = "flex";
+    guessInput.value="";
+
+    submitBtn.disabled=true;
 
 
-    document
-    .getElementById("answer")
-    .hidden = true;
-
-
-    if(deck.length === 0){
+    if(deck.length===0){
 
         shuffleDeck();
 
@@ -320,9 +302,7 @@ async function nextSong(){
 
 
     const duration =
-    await getDuration(
-        current.id
-    );
+    await getDuration(current.id);
 
 
     if(duration < MIN_DURATION){
@@ -332,16 +312,15 @@ async function nextSong(){
     }
 
 
-    const startTime =
+    pendingStartTime =
     Math.floor(
-        duration * 0.2
-        +
-        Math.random()
-        *
-        (
-            duration * 0.6
-        )
+        duration * .2 +
+        Math.random() *
+        duration * .6
     );
+
+
+    hasSeeked=false;
 
 
     console.log(
@@ -350,35 +329,17 @@ async function nextSong(){
     );
 
     console.log(
-        "Duration:",
-        duration
-    );
-
-    console.log(
-        "Starting at:",
-        startTime
+        "Start:",
+        pendingStartTime
     );
 
 
-    player.cueVideoById({
-
-        videoId:
-        current.id,
-
-        startSeconds:
-        startTime
-
-    });
+    player.loadVideoById(
+        current.id
+    );
 
 
-    setTimeout(() => {
-
-        player.playVideo();
-
-    }, 500);
-
-
-    nextBtn.disabled = true;
+    nextBtn.disabled=true;
 
 }
 
@@ -390,23 +351,16 @@ async function nextSong(){
 async function getDuration(id){
 
     const key =
-    document
-    .getElementById("apiKey")
-    .value;
-
-
-    const url =
-    "https://www.googleapis.com/youtube/v3/videos"
-    +
-    "?part=contentDetails"
-    +
-    `&id=${id}`
-    +
-    `&key=${key}`;
+    document.getElementById("apiKey").value;
 
 
     const response =
-    await fetch(url);
+    await fetch(
+        "https://www.googleapis.com/youtube/v3/videos" +
+        "?part=contentDetails" +
+        `&id=${id}` +
+        `&key=${key}`
+    );
 
 
     const data =
@@ -422,71 +376,84 @@ async function getDuration(id){
 }
 
 
-// ----------------------------
-// Parse Duration
-// ----------------------------
-
 function parseDuration(value){
 
-    const result =
+    const match =
     value.match(
         /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/
     );
 
 
     return (
-
-        (Number(result[1]) || 0) * 3600
-
-        +
-
-        (Number(result[2]) || 0) * 60
-
-        +
-
-        (Number(result[3]) || 0)
-
+        (match[1]||0)*3600 +
+        (match[2]||0)*60 +
+        (match[3]||0)
     );
 
 }
 
 
 // ----------------------------
-// Answer
+// Buttons
 // ----------------------------
 
-submitBtn.onclick = function(){
+playBtn.onclick=function(){
 
-    document
-    .getElementById("blindCover")
-    .style.display = "none";
-
-
-    document
-    .getElementById("title")
-    .textContent =
-    current.title;
-
-
-    document
-    .getElementById("channel")
-    .textContent =
-    current.channel;
-
-
-    document
-    .getElementById("answer")
-    .hidden = false;
-
-
-    nextBtn.disabled = false;
+    player.playVideo();
 
 };
 
 
-// ----------------------------
-// Next Button
-// ----------------------------
+pauseBtn.onclick=function(){
+
+    player.pauseVideo();
+
+};
+
+
+showVideoBtn.onclick=function(){
+
+    document.getElementById("blindCover")
+    .style.display="none";
+
+};
+
+
+guessInput.oninput=function(){
+
+    submitBtn.disabled =
+    guessInput.value.trim()==="";
+
+};
+
+
+submitBtn.onclick=function(){
+
+    document.getElementById("blindCover")
+    .style.display="none";
+
+
+    document.getElementById("title")
+    .textContent=current.title;
+
+
+    document.getElementById("channel")
+    .textContent=current.channel;
+
+
+    document.getElementById("userGuess")
+    .textContent=
+    guessInput.value;
+
+
+    document.getElementById("answer")
+    .hidden=false;
+
+
+    nextBtn.disabled=false;
+
+};
+
 
 nextBtn.onclick =
 nextSong;
