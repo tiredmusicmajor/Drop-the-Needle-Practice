@@ -372,3 +372,9 @@ function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* fine if this fails, app still works */ });
+  });
+}
