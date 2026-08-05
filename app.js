@@ -447,7 +447,7 @@ async function nextSong() {
     */
 
     player.loadVideoById({
-        current.id,
+        videoId: current.id,
         startSeconds: pendingStartTime
     });
 
