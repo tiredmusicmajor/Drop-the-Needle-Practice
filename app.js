@@ -61,28 +61,23 @@ function onYouTubeIframeAPIReady() {
                             hasSeeked = true;
 
                             console.log(
-                                "Seeking to:",
-                                pendingStartTime
+                                "Waiting before seek..."
                             );
-
-
-                            player.seekTo(
-                                pendingStartTime,
-                                true
-                            );
-
-                        }
-
+                            
+                            setTimeout(() => {
+                                console.log(
+                                    "Seeking to:",
+                                    pendingStartTime
+                                );
+                                
+                                player.seekTo(
+                                    pendingStartTime,
+                                    true
+                                );
+                            }, 1500);
+                        }              
                     }
-
                 }
-
-            }
-
-        }
-    );
-
-}
 
 
 // ----------------------------
