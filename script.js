@@ -12,7 +12,8 @@ const state = {
   current: null,      // { id, title, startSeconds }
   player: null,
   playerReady: false,
-  score: { correct: 0, missed: 0 },
+  playedCount: 0,
+  isPaused: false,
   hideVideo: true,
 };
 
@@ -32,16 +33,15 @@ const els = {
   howToKey: $('how-to-key'),
   changePlaylistBtn: $('change-playlist-btn'),
   playerShade: $('player-shade'),
+  pauseBtn: $('pause-btn'),
   preReveal: $('pre-reveal'),
   postReveal: $('post-reveal'),
+  guessInput: $('guess-input'),
+  guessRecap: $('guess-recap'),
   revealBtn: $('reveal-btn'),
   answerTitle: $('answer-title'),
   answerLink: $('answer-link'),
-  markCorrect: $('mark-correct'),
-  markMissed: $('mark-missed'),
   nextBtn: $('next-btn'),
-  scoreCorrect: $('score-correct'),
-  scoreMissed: $('score-missed'),
   scoreTotal: $('score-total'),
   gameError: $('game-error'),
 };
@@ -218,6 +218,8 @@ async function playRound() {
   els.preReveal.hidden = false;
   els.postReveal.hidden = true;
   els.playerShade.hidden = state.hideVideo ? false : true;
+  els.guessInput.value = '';
+  els.guessRecap.hidden = true;
 
   const round = pickRandomVideo();
   state.current = round;
@@ -225,6 +227,10 @@ async function playRound() {
   const player = await ensurePlayer();
   player.loadVideoById({ videoId: round.id, startSeconds: round.startSeconds });
   player.unMute?.();
+  setPaused(false);
+
+  state.playedCount += 1;
+  els.scoreTotal.textContent = state.playedCount;
 }
 
 function revealAnswer() {
@@ -234,20 +240,29 @@ function revealAnswer() {
   els.playerShade.hidden = true; // always show video once revealed
   els.answerTitle.textContent = state.current.title;
   els.answerLink.href = `https://www.youtube.com/watch?v=${state.current.id}`;
+
+  const guess = els.guessInput.value.trim();
+  if (guess) {
+    els.guessRecap.innerHTML = `You guessed: <strong></strong>`;
+    els.guessRecap.querySelector('strong').textContent = guess;
+    els.guessRecap.hidden = false;
+  } else {
+    els.guessRecap.hidden = true;
+  }
 }
 
-function recordJudgement(correct) {
-  if (correct) state.score.correct += 1;
-  else state.score.missed += 1;
-  updateScoreboard();
-  els.markCorrect.disabled = true;
-  els.markMissed.disabled = true;
+function setPaused(paused) {
+  state.isPaused = paused;
+  if (state.player) {
+    if (paused) state.player.pauseVideo?.();
+    else state.player.playVideo?.();
+  }
+  els.pauseBtn.textContent = paused ? 'Resume audio' : 'Pause audio';
+  els.pauseBtn.classList.toggle('is-paused', paused);
 }
 
-function updateScoreboard() {
-  els.scoreCorrect.textContent = state.score.correct;
-  els.scoreMissed.textContent = state.score.missed;
-  els.scoreTotal.textContent = state.score.correct + state.score.missed;
+function togglePause() {
+  setPaused(!state.isPaused);
 }
 
 /* ---------- setup flow ---------- */
@@ -271,8 +286,8 @@ async function handleStart() {
 
   try {
     state.videos = await loadPlaylist(apiKey, playlistId);
-    state.score = { correct: 0, missed: 0 };
-    updateScoreboard();
+    state.playedCount = 0;
+    els.scoreTotal.textContent = '0';
     showScreen('game');
     await playRound();
   } catch (err) {
@@ -305,11 +320,9 @@ function init() {
   els.apiKeyInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleStart(); });
 
   els.revealBtn.addEventListener('click', revealAnswer);
-  els.markCorrect.addEventListener('click', () => recordJudgement(true));
-  els.markMissed.addEventListener('click', () => recordJudgement(false));
+  els.guessInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') revealAnswer(); });
+  els.pauseBtn.addEventListener('click', togglePause);
   els.nextBtn.addEventListener('click', async () => {
-    els.markCorrect.disabled = false;
-    els.markMissed.disabled = false;
     try {
       await playRound();
     } catch (err) {
