@@ -9,7 +9,9 @@ let current = null;
 let player = null;
 
 let pendingStartTime = 0;
+
 let playerReady = false;
+let seeking = false;
 
 const MIN_DURATION = 60;
 
@@ -29,7 +31,8 @@ function onYouTubeIframeAPIReady() {
             playerVars: {
                 controls: 0,
                 modestbranding: 1,
-                rel: 0
+                rel: 0,
+                enablejsapi: 1
             },
 
             events: {
@@ -47,8 +50,7 @@ function onYouTubeIframeAPIReady() {
 
                 onStateChange: function(event) {
 
-                    const state =
-                    event.data;
+                    const state = event.data;
 
 
                     console.log(
@@ -59,15 +61,29 @@ function onYouTubeIframeAPIReady() {
 
                     if(
                         state === YT.PlayerState.PLAYING
+                        &&
+                        seeking
                     ){
 
                         console.log(
-                            "Playback began at:",
+                            "Started at:",
                             player.getCurrentTime()
                         );
 
 
-                        player.pauseVideo();
+                        player.seekTo(
+                            pendingStartTime,
+                            true
+                        );
+
+
+                        seeking = false;
+
+
+                        console.log(
+                            "Seeking to:",
+                            pendingStartTime
+                        );
 
                     }
 
@@ -78,7 +94,10 @@ function onYouTubeIframeAPIReady() {
         }
     );
 
-}           
+}
+
+
+
 // ----------------------------
 // Elements
 // ----------------------------
@@ -144,6 +163,7 @@ loadBtn.onclick = async function() {
     apiKey;
 
 
+
     let playlistId;
 
 
@@ -166,6 +186,7 @@ loadBtn.onclick = async function() {
     }
 
 
+
     if(!playlistId){
 
         status.textContent =
@@ -176,16 +197,20 @@ loadBtn.onclick = async function() {
     }
 
 
+
     status.textContent =
     "Loading playlist...";
+
 
 
     const cacheKey =
     "playlist_" + playlistId;
 
 
+
     const cached =
     localStorage.getItem(cacheKey);
+
 
 
     if(cached){
@@ -212,6 +237,7 @@ loadBtn.onclick = async function() {
     }
 
 
+
     if(
         playlist.length === 0
     ){
@@ -224,7 +250,9 @@ loadBtn.onclick = async function() {
     }
 
 
+
     shuffleDeck();
+
 
 
     document
@@ -232,18 +260,24 @@ loadBtn.onclick = async function() {
     .hidden = true;
 
 
+
     document
     .getElementById("game")
     .hidden = false;
+
 
 
     status.textContent =
     `${playlist.length} songs loaded`;
 
 
+
     nextSong();
 
 };
+
+
+
 // ----------------------------
 // Get Playlist
 // ----------------------------
@@ -253,6 +287,7 @@ async function getPlaylist(id, key) {
     let videos = [];
 
     let token = "";
+
 
 
     do {
@@ -271,12 +306,15 @@ async function getPlaylist(id, key) {
         `&pageToken=${token}`;
 
 
+
         const response =
         await fetch(url);
 
 
+
         const data =
         await response.json();
+
 
 
         if(data.error){
@@ -288,6 +326,7 @@ async function getPlaylist(id, key) {
             return [];
 
         }
+
 
 
         data.items.forEach(item => {
@@ -308,20 +347,18 @@ async function getPlaylist(id, key) {
         });
 
 
+
         token =
         data.nextPageToken || "";
-
 
     }
     while(token);
 
 
+
     return videos;
 
 }
-
-
-
 // ----------------------------
 // Shuffle
 // ----------------------------
@@ -371,9 +408,11 @@ async function nextSong() {
     .hidden = true;
 
 
+
     document
     .getElementById("blindCover")
     .style.display = "flex";
+
 
 
     guessInput.value = "";
@@ -438,17 +477,14 @@ async function nextSong() {
         pendingStartTime
     );
 
-    /*
-        I intentionally use loadVideoById
-        instead of cueVideoById.
 
-        The player must actually initialize
-        the media before seeking is reliable.
-    */
+
+    seeking = true;
+
+
 
     player.loadVideoById({
-        videoId: current.id,
-        startSeconds: pendingStartTime
+        videoId: current.id
     });
 
 
@@ -478,8 +514,10 @@ async function getDuration(id) {
     "duration_" + id;
 
 
+
     const cached =
     localStorage.getItem(cacheKey);
+
 
 
     if(cached){
@@ -487,6 +525,7 @@ async function getDuration(id) {
         return Number(cached);
 
     }
+
 
 
     const key =
@@ -567,20 +606,20 @@ function parseDuration(value) {
     );
 
 }
+
+
+
 // ----------------------------
 // Controls
 // ----------------------------
 
 playBtn.onclick = function() {
 
-    if(!player){
+    if(player){
 
-        return;
+        player.playVideo();
 
     }
-
-
-    player.playVideo();
 
 };
 
@@ -588,14 +627,11 @@ playBtn.onclick = function() {
 
 pauseBtn.onclick = function() {
 
-    if(!player){
+    if(player){
 
-        return;
+        player.pauseVideo();
 
     }
-
-
-    player.pauseVideo();
 
 };
 
