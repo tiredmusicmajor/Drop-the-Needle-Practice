@@ -15,7 +15,7 @@ playerReady = true;
 }
 
 // Extract playlist ID from URL
-function extractPlaylistId(url) {
+function extractPlaylistIdFromURL(url) {
 
 ```
 const match = url.match(/[?&]list=([^&]+)/);
@@ -37,7 +37,7 @@ async function initializeGame() {
 apiKey = document.getElementById("apiKey").value.trim();
 
 playlistId =
-    extractPlaylistId(
+    extractPlaylistIdFromURL(
         document.getElementById("playlistUrl").value.trim()
     );
 
