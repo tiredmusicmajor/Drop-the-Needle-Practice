@@ -7,11 +7,7 @@ let deck = [];
 let current = null;
 
 let player = null;
-
-let pendingStartTime = 0;
-
 let playerReady = false;
-let seeking = false;
 
 const MIN_DURATION = 60;
 
@@ -47,7 +43,6 @@ function onYouTubeIframeAPIReady() {
 
                 },
 
-
                 onStateChange: function(event) {
 
                     console.log(
@@ -55,42 +50,13 @@ function onYouTubeIframeAPIReady() {
                         event.data
                     );
 
-
-                    if(
-                        event.data === YT.PlayerState.CUED
-                    ){
-
-                        console.log(
-                            "Video cued at:",
-                            player.getCurrentTime()
-                        );
-
-
-                        player.playVideo();
-
-                    }
-
-
-                    if(
-                        event.data === YT.PlayerState.PLAYING
-                    ){
-
-                        console.log(
-                            "Playing at:",
-                            player.getCurrentTime()
-                        );
-
-                    }
-
                 }
 
             }
-
         }
     );
 
 }
-
 
 
 // ----------------------------
@@ -100,40 +66,17 @@ function onYouTubeIframeAPIReady() {
 const loadBtn =
 document.getElementById("loadBtn");
 
-const playBtn =
-document.getElementById("playBtn");
-
-const pauseBtn =
-document.getElementById("pauseBtn");
-
-const showVideoBtn =
-document.getElementById("showVideoBtn");
-
-const submitBtn =
-document.getElementById("submitBtn");
-
 const nextBtn =
 document.getElementById("nextBtn");
-
-const guessInput =
-document.getElementById("guessInput");
 
 const status =
 document.getElementById("status");
 
+const guessInput =
+document.getElementById("guessInput");
 
-
-// ----------------------------
-// Restore Saved Values
-// ----------------------------
-
-document.getElementById("playlistUrl").value =
-localStorage.playlistUrl || "";
-
-
-document.getElementById("apiKey").value =
-localStorage.apiKey || "";
-
+const submitBtn =
+document.getElementById("submitBtn");
 
 
 // ----------------------------
@@ -148,15 +91,6 @@ loadBtn.onclick = async function() {
 
     const apiKey =
     document.getElementById("apiKey").value;
-
-
-    localStorage.playlistUrl =
-    playlistUrl;
-
-
-    localStorage.apiKey =
-    apiKey;
-
 
 
     let playlistId;
@@ -181,7 +115,6 @@ loadBtn.onclick = async function() {
     }
 
 
-
     if(!playlistId){
 
         status.textContent =
@@ -192,50 +125,18 @@ loadBtn.onclick = async function() {
     }
 
 
-
     status.textContent =
     "Loading playlist...";
 
 
-
-    const cacheKey =
-    "playlist_" + playlistId;
-
-
-
-    const cached =
-    localStorage.getItem(cacheKey);
+    playlist =
+    await getPlaylist(
+        playlistId,
+        apiKey
+    );
 
 
-
-    if(cached){
-
-        playlist =
-        JSON.parse(cached);
-
-    }
-
-    else {
-
-        playlist =
-        await getPlaylist(
-            playlistId,
-            apiKey
-        );
-
-
-        localStorage.setItem(
-            cacheKey,
-            JSON.stringify(playlist)
-        );
-
-    }
-
-
-
-    if(
-        playlist.length === 0
-    ){
+    if(playlist.length === 0){
 
         status.textContent =
         "No videos found";
@@ -245,9 +146,7 @@ loadBtn.onclick = async function() {
     }
 
 
-
     shuffleDeck();
-
 
 
     document
@@ -255,22 +154,18 @@ loadBtn.onclick = async function() {
     .hidden = true;
 
 
-
     document
     .getElementById("game")
     .hidden = false;
-
 
 
     status.textContent =
     `${playlist.length} songs loaded`;
 
 
-
     nextSong();
 
 };
-
 
 
 // ----------------------------
@@ -282,7 +177,6 @@ async function getPlaylist(id, key) {
     let videos = [];
 
     let token = "";
-
 
 
     do {
@@ -301,15 +195,12 @@ async function getPlaylist(id, key) {
         `&pageToken=${token}`;
 
 
-
         const response =
         await fetch(url);
 
 
-
         const data =
         await response.json();
-
 
 
         if(data.error){
@@ -321,7 +212,6 @@ async function getPlaylist(id, key) {
             return [];
 
         }
-
 
 
         data.items.forEach(item => {
@@ -342,23 +232,24 @@ async function getPlaylist(id, key) {
         });
 
 
-
         token =
         data.nextPageToken || "";
+
 
     }
     while(token);
 
 
-
     return videos;
 
 }
+
+
 // ----------------------------
 // Shuffle
 // ----------------------------
 
-function shuffleDeck() {
+function shuffleDeck(){
 
     deck =
     [...playlist];
@@ -390,18 +281,21 @@ function shuffleDeck() {
 }
 
 
-
 // ----------------------------
 // Next Song
 // ----------------------------
 
-async function nextSong() {
+async function nextSong(){
 
+    if(!playerReady){
 
-    document
-    .getElementById("answer")
-    .hidden = true;
+        console.log(
+            "Player not ready"
+        );
 
+        return;
+
+    }
 
 
     document
@@ -409,11 +303,9 @@ async function nextSong() {
     .style.display = "flex";
 
 
-
-    guessInput.value = "";
-
-    submitBtn.disabled = true;
-
+    document
+    .getElementById("answer")
+    .hidden = true;
 
 
     if(deck.length === 0){
@@ -423,10 +315,8 @@ async function nextSong() {
     }
 
 
-
     current =
     deck.pop();
-
 
 
     const duration =
@@ -435,100 +325,74 @@ async function nextSong() {
     );
 
 
-
     if(duration < MIN_DURATION){
-
-        deck.unshift(current);
 
         return nextSong();
 
     }
 
 
-
-    pendingStartTime =
+    const startTime =
     Math.floor(
-
         duration * 0.2
-
         +
-
         Math.random()
         *
         (
             duration * 0.6
         )
-
     );
-
 
 
     console.log(
         "Selected:",
-        current.title,
+        current.title
+    );
+
+    console.log(
         "Duration:",
-        duration,
-        "Start:",
-        pendingStartTime
+        duration
+    );
+
+    console.log(
+        "Starting at:",
+        startTime
     );
 
 
+    player.cueVideoById({
 
-    seeking = true;
+        videoId:
+        current.id,
+
+        startSeconds:
+        startTime
+
+    });
 
 
+    setTimeout(() => {
 
-   player.cueVideoById({
-       videoId: current.id,
-       startSeconds: pendingStartTime
-   });
+        player.playVideo();
 
-
-
-    document
-    .getElementById("count")
-    .textContent =
-    `${playlist.length - deck.length} / ${playlist.length} played`;
-
+    }, 500);
 
 
     nextBtn.disabled = true;
 
-
 }
 
 
-
 // ----------------------------
-// Duration Cache
+// Duration
 // ----------------------------
 
-async function getDuration(id) {
-
-
-    const cacheKey =
-    "duration_" + id;
-
-
-
-    const cached =
-    localStorage.getItem(cacheKey);
-
-
-
-    if(cached){
-
-        return Number(cached);
-
-    }
-
-
+async function getDuration(id){
 
     const key =
     document
     .getElementById("apiKey")
     .value;
-
 
 
     const url =
@@ -541,44 +405,28 @@ async function getDuration(id) {
     `&key=${key}`;
 
 
-
     const response =
     await fetch(url);
-
 
 
     const data =
     await response.json();
 
 
-
-    const duration =
-    parseDuration(
+    return parseDuration(
         data.items[0]
         .contentDetails
         .duration
     );
 
-
-
-    localStorage.setItem(
-        cacheKey,
-        duration
-    );
-
-
-    return duration;
-
 }
 
 
-
 // ----------------------------
-// Parse YouTube Duration
+// Parse Duration
 // ----------------------------
 
-function parseDuration(value) {
-
+function parseDuration(value){
 
     const result =
     value.match(
@@ -586,88 +434,32 @@ function parseDuration(value) {
     );
 
 
-
     return (
 
-        (result[1] || 0) * 3600
+        (Number(result[1]) || 0) * 3600
 
         +
 
-        (result[2] || 0) * 60
+        (Number(result[2]) || 0) * 60
 
         +
 
-        (result[3] || 0)
+        (Number(result[3]) || 0)
 
     );
 
 }
 
 
-
 // ----------------------------
-// Controls
+// Answer
 // ----------------------------
 
-playBtn.onclick = function() {
-
-    if(player){
-
-        player.playVideo();
-
-    }
-
-};
-
-
-
-pauseBtn.onclick = function() {
-
-    if(player){
-
-        player.pauseVideo();
-
-    }
-
-};
-
-
-
-showVideoBtn.onclick = function() {
+submitBtn.onclick = function(){
 
     document
     .getElementById("blindCover")
     .style.display = "none";
-
-};
-
-
-
-// ----------------------------
-// Guess Submission
-// ----------------------------
-
-guessInput.oninput = function() {
-
-    submitBtn.disabled =
-    guessInput.value.trim() === "";
-
-};
-
-
-
-submitBtn.onclick = function() {
-
-
-    const guess =
-    guessInput.value.trim();
-
-
-
-    document
-    .getElementById("blindCover")
-    .style.display = "none";
-
 
 
     document
@@ -676,19 +468,10 @@ submitBtn.onclick = function() {
     current.title;
 
 
-
     document
     .getElementById("channel")
     .textContent =
     current.channel;
-
-
-
-    document
-    .getElementById("userGuess")
-    .textContent =
-    guess;
-
 
 
     document
@@ -696,12 +479,9 @@ submitBtn.onclick = function() {
     .hidden = false;
 
 
-
     nextBtn.disabled = false;
 
-
 };
-
 
 
 // ----------------------------
