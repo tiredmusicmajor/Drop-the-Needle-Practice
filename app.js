@@ -1,303 +1,541 @@
-let apiKey = "";
-let playlistId = "";
-
-let videos = [];
-let currentVideo = null;
+let playlist = [];
+let deck = [];
+let current = null;
 
 let player;
-let playerReady = false;
 
-let currentStartTime = 0;
 
-// YouTube iframe API callback
+// Minimum song length in seconds
+const MIN_DURATION = 60;
+
+
+// YouTube player setup
+
 function onYouTubeIframeAPIReady() {
-playerReady = true;
-}
 
-// Extract playlist ID from URL
-function extractPlaylistIdFromURL(url) {
-
-```
-const match = url.match(/[?&]list=([^&]+)/);
-
-if (!match) {
-    alert("Could not find playlist ID.");
-    return null;
-}
-
-return match[1];
-```
-
-}
-
-// Start game setup
-async function initializeGame() {
-
-```
-apiKey = document.getElementById("apiKey").value.trim();
-
-playlistId =
-    extractPlaylistIdFromURL(
-        document.getElementById("playlistUrl").value.trim()
-    );
-
-if (!apiKey || !playlistId) {
-    return;
-}
-
-
-videos = await loadPlaylistVideos();
-
-
-if (videos.length === 0) {
-    alert("No videos found.");
-    return;
-}
-
-
-document.getElementById("setup").style.display = "none";
-document.getElementById("game").style.display = "block";
-
-
-startRound();
-```
-
-}
-
-// Load playlist entries
-async function loadPlaylistVideos() {
-
-```
-let results = [];
-
-let nextPage = "";
-
-
-do {
-
-    let url =
-        "https://www.googleapis.com/youtube/v3/playlistItems" +
-        "?part=snippet" +
-        "&maxResults=50" +
-        "&playlistId=" + playlistId +
-        "&key=" + apiKey +
-        (nextPage ? "&pageToken=" + nextPage : "");
-
-
-    const response = await fetch(url);
-
-    const data = await response.json();
-
-
-    if (data.error) {
-        alert(data.error.message);
-        return [];
-    }
-
-
-    for (const item of data.items) {
-
-        results.push({
-            id: item.snippet.resourceId.videoId,
-            title: item.snippet.title
-        });
-
-    }
-
-
-    nextPage = data.nextPageToken || "";
-
-
-} while (nextPage);
-
-
-return results;
-```
-
-}
-
-// Begin a new round
-async function startRound() {
-
-```
-document.getElementById("answer").innerHTML = "";
-document.getElementById("guess").value = "";
-
-document.getElementById("video-cover").style.display = "block";
-
-
-currentVideo =
-    videos[
-        Math.floor(Math.random() * videos.length)
-    ];
-
-
-const duration =
-    await getVideoDuration(currentVideo.id);
-
-
-currentStartTime =
-    Math.floor(
-        duration * (0.1 + Math.random() * 0.8)
-    );
-
-
-loadVideo(
-    currentVideo.id,
-    currentStartTime
-);
-```
-
-}
-
-// Get video duration
-async function getVideoDuration(videoId) {
-
-```
-const url =
-    "https://www.googleapis.com/youtube/v3/videos" +
-    "?part=contentDetails" +
-    "&id=" + videoId +
-    "&key=" + apiKey;
-
-
-const response = await fetch(url);
-const data = await response.json();
-
-
-const duration =
-    data.items[0]
-    .contentDetails
-    .duration;
-
-
-return parseDuration(duration);
-```
-
-}
-
-// Convert ISO duration to seconds
-function parseDuration(duration) {
-
-```
-const match =
-    duration.match(
-        /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/
-    );
-
-
-const hours =
-    parseInt(match[1] || 0);
-
-const minutes =
-    parseInt(match[2] || 0);
-
-const seconds =
-    parseInt(match[3] || 0);
-
-
-return hours * 3600 +
-       minutes * 60 +
-       seconds;
-```
-
-}
-
-// Load YouTube player
-function loadVideo(videoId, startTime) {
-
-```
-if (player) {
-
-    player.loadVideoById({
-        videoId: videoId,
-        startSeconds: startTime
-    });
-
-    return;
-}
-
-
-player =
-    new YT.Player(
+    player = new YT.Player(
         "player",
         {
-            videoId: videoId,
-
+            height: "100%",
+            width: "100%",
             playerVars: {
-                autoplay: 1,
-                controls: 0
-            },
-
-            events: {
-
-                onReady: function(event) {
-
-                    event.target.seekTo(startTime);
-                    event.target.playVideo();
-
-                }
-
+                controls: 0,
+                modestbranding: 1,
+                rel: 0
             }
-
         }
     );
-```
 
 }
 
-// Play/pause button
-function toggleAudio() {
 
-```
-if (!player) {
-    return;
+// Elements
+
+const loadBtn = document.getElementById("loadBtn");
+
+const playBtn = document.getElementById("playBtn");
+
+const showVideoBtn = document.getElementById("showVideoBtn");
+const pauseBtn = document.getElementById("pauseBtn");
+const submitBtn = document.getElementById("submitBtn");
+const nextBtn = document.getElementById("nextBtn");
+
+const guessInput =
+    document.getElementById("guessInput");
+
+const status =
+    document.getElementById("status");
+
+
+// Load saved values
+
+document.getElementById("playlistUrl").value =
+    localStorage.playlistUrl || "";
+
+document.getElementById("apiKey").value =
+    localStorage.apiKey || "";
+
+
+
+// Load playlist
+
+loadBtn.onclick = async () => {
+
+
+    const playlistUrl =
+        document.getElementById("playlistUrl").value;
+
+
+    const apiKey =
+        document.getElementById("apiKey").value;
+
+
+    localStorage.playlistUrl = playlistUrl;
+    localStorage.apiKey = apiKey;
+
+
+    let playlistId;
+
+
+    try {
+
+        playlistId =
+            new URL(playlistUrl)
+            .searchParams
+            .get("list");
+
+    }
+    catch {
+
+        status.textContent =
+            "Invalid playlist URL";
+
+        return;
+
+    }
+
+
+
+    if(!playlistId){
+
+        status.textContent =
+            "Could not find playlist ID";
+
+        return;
+
+    }
+
+
+    status.textContent =
+        "Loading playlist...";
+
+
+    playlist =
+        await getPlaylist(
+            playlistId,
+            apiKey
+        );
+
+
+    if(playlist.length === 0){
+
+        status.textContent =
+            "No videos found";
+
+        return;
+
+    }
+
+
+    shuffleDeck();
+
+
+    document
+    .getElementById("setup")
+    .hidden = true;
+
+
+    document
+    .getElementById("game")
+    .hidden = false;
+
+
+    status.textContent =
+        `${playlist.length} songs loaded`;
+
+
+    nextSong();
+
+};
+
+
+
+// Get playlist items
+
+async function getPlaylist(id, key){
+
+
+    let videos = [];
+
+    let token = "";
+
+
+    do {
+
+
+        const url =
+        "https://www.googleapis.com/youtube/v3/playlistItems"
+        +
+        "?part=snippet"
+        +
+        "&maxResults=50"
+        +
+        `&playlistId=${id}`
+        +
+        `&key=${key}`
+        +
+        `&pageToken=${token}`;
+
+
+        const response =
+            await fetch(url);
+
+
+        const data =
+            await response.json();
+
+
+
+        if(data.error){
+
+            alert(data.error.message);
+
+            return [];
+
+        }
+
+
+
+        data.items.forEach(item => {
+
+            videos.push({
+
+                id:
+                item.snippet.resourceId.videoId,
+
+                title:
+                item.snippet.title,
+
+                channel:
+                item.snippet.videoOwnerChannelTitle
+
+            });
+
+        });
+
+
+        token =
+            data.nextPageToken || "";
+
+
+    }
+    while(token);
+
+
+    return videos;
+
 }
 
 
-const state =
-    player.getPlayerState();
+
+// Shuffle songs
+
+function shuffleDeck(){
 
 
-if (
-    state === YT.PlayerState.PLAYING
-) {
+    deck =
+        [...playlist];
 
-    player.pauseVideo();
 
-} else {
+    for(
+        let i = deck.length - 1;
+        i > 0;
+        i--
+    ){
 
-    player.playVideo();
+        const j =
+            Math.floor(
+                Math.random() * (i + 1)
+            );
+
+
+        [
+            deck[i],
+            deck[j]
+        ] =
+        [
+            deck[j],
+            deck[i]
+        ];
+
+    }
 
 }
-```
+
+
+
+// Pick next song
+
+async function nextSong(){
+
+
+    document
+    .getElementById("answer")
+    .hidden = true;
+
+
+    document
+    .getElementById("blindCover")
+    .style.display = "flex";
+
+
+    guessInput.value = "";
+
+    submitBtn.disabled = true;
+
+
+    if(deck.length === 0){
+
+        shuffleDeck();
+
+    }
+
+
+    current =
+        deck.pop();
+
+
+
+    const duration =
+        await getDuration(
+            current.id
+        );
+
+
+
+    if(duration < MIN_DURATION){
+
+        return nextSong();
+
+    }
+
+
+
+    const start =
+        Math.floor(
+
+            duration * 0.2
+
+            +
+
+            Math.random()
+            *
+            (
+                duration * 0.6
+            )
+
+        );
+
+
+
+    player.loadVideoById({
+
+        videoId:
+            current.id,
+
+        startSeconds:
+            start
+
+    });
+
+
+
+    document
+    .getElementById("count")
+    .textContent =
+        `${playlist.length - deck.length} / ${playlist.length} played`;
+
+
+
+    nextBtn.disabled = true;
+
 
 }
 
-// Reveal answer
-function revealAnswer() {
-
-```
-document.getElementById("answer")
-    .innerHTML =
-    currentVideo.title;
 
 
-document.getElementById("video-cover")
+// Get video duration
+
+async function getDuration(id){
+
+
+    const key =
+        document
+        .getElementById("apiKey")
+        .value;
+
+
+
+    const url =
+        "https://www.googleapis.com/youtube/v3/videos"
+        +
+        "?part=contentDetails"
+        +
+        `&id=${id}`
+        +
+        `&key=${key}`;
+
+
+
+    const response =
+        await fetch(url);
+
+
+    const data =
+        await response.json();
+
+
+
+    const duration =
+        data.items[0]
+        .contentDetails
+        .duration;
+
+
+
+    return parseDuration(duration);
+
+}
+
+
+
+// Convert ISO duration
+
+function parseDuration(value){
+
+
+    const result =
+        value.match(
+            /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/
+        );
+
+
+    return (
+
+        (result[1] || 0) * 3600
+
+        +
+
+        (result[2] || 0) * 60
+
+        +
+
+        (result[3] || 0)
+
+    );
+
+}
+
+
+
+// Play audio only
+
+playBtn.onclick = () => {
+
+
+    const state =
+        player.getPlayerState();
+
+
+    if(
+        state ===
+        YT.PlayerState.PLAYING
+    ){
+
+        player.pauseVideo();
+
+        playBtn.textContent =
+            "▶ Play Audio";
+
+    }
+    else {
+
+        player.playVideo();
+
+        playBtn.textContent =
+            "⏸ Pause Audio";
+
+    }
+
+};
+
+
+
+// Reveal video
+
+showVideoBtn.onclick = () => {
+
+
+    document
+    .getElementById("blindCover")
     .style.display = "none";
-```
 
-}
+};
+
+
+
+// Enable submit when text exists
+
+guessInput.oninput = () => {
+
+
+    submitBtn.disabled =
+        guessInput.value.trim().length === 0;
+
+};
+
+
+
+// Submit answer
+
+submitBtn.onclick = () => {
+
+
+    const guess =
+        guessInput.value.trim();
+
+
+
+    document
+    .getElementById("blindCover")
+    .style.display = "none";
+
+
+
+    document
+    .getElementById("title")
+    .textContent =
+        current.title;
+
+
+
+    document
+    .getElementById("channel")
+    .textContent =
+        current.channel;
+
+
+
+    document
+    .getElementById("userGuess")
+    .textContent =
+        guess;
+
+
+
+    document
+    .getElementById("answer")
+    .hidden = false;
+
+
+
+    nextBtn.disabled = false;
+
+
+};
+
+
 
 // Next song
-function nextSong() {
 
-```
-if (player) {
-    player.stopVideo();
-}
-
-startRound();
-```
-
-}
+nextBtn.onclick = nextSong;
